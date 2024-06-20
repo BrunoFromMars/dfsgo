@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/BrunoFromMars/dfsgo/p2p"
 )
@@ -14,23 +15,26 @@ func OnPeer(p2p.Peer) error {
 
 func main() {
 	tcpOpts := p2p.TCPTransportOpts {
-		ListenAddr: ":3000",
+		ListenAddr:    ":3000",
 		HandshakeFunc: p2p.NoHandShakeFunc,
-		Decoder: p2p.DefaultDecoder{},
-		OnPeer: OnPeer,
+		Decoder:       p2p.DefaultDecoder{},
+		// OnPeer: OnPeer, TODO: OnPeer function
 	}
-	tr := p2p.NewTCPTransport(tcpOpts)
+	tcpTransport := p2p.NewTCPTransport(tcpOpts)
 
-	go func ()  {
-		for {
-			msg := <-tr.Consume()
-			fmt.Printf("%+v\n", msg)
-		}
+	fileServerOpts := FileServerOpts {
+		StorageRoot:       "3000_network",
+		PathTransformFunc: CASPathTransformFunc,
+		Transport:         tcpTransport,
+	}
+	fs := NewFileServer(fileServerOpts)
+
+	go func() {
+		time.Sleep(time.Second * 3)
+		fs.Stop()
 	}()
 
-	if err := tr.ListenAndAccept(); err != nil {
+	if err := fs.Start(); err != nil {
 		log.Fatal(err)
 	}
-	select {}
-	// fmt.Println("dfs_go ready!")
 }
