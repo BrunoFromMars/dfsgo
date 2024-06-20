@@ -24,6 +24,19 @@ func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	}
 }
 
+// Send implments Peer interface
+func (p *TCPPeer) Send(b []byte) error {
+	_, err := p.conn.Write(b)
+	return err
+}
+
+// RemoteAddr implements Peer interface and will return
+// remote address of its underlying connection
+func (p *TCPPeer) RemoteAddr() net.Addr {
+
+	return p.conn.RemoteAddr()
+}
+
 // Close implements Peer interface
 func (p *TCPPeer) Close() error {
 	return p.conn.Close()
@@ -54,6 +67,18 @@ func NewTCPTransport(opts TCPTransportOpts)  *TCPTransport {
 	}
 }
 
+// Dial implements Transport interface
+func (t *TCPTransport) Dial(addr string) error {
+	conn, err := net.Dial("tcp", addr)
+
+	if err != nil {
+		return err
+	}
+
+	go t.handleConn(conn, true)
+
+	return nil
+}
 
 func (t *TCPTransport) ListenAndAccept() error {
 	var err error
@@ -69,7 +94,6 @@ func (t *TCPTransport) ListenAndAccept() error {
 	log.Printf("TCP transport listening on port: %s\n", t.ListenAddr)
 
 	return nil
-
 }
 
 // Close implements the Transport interface
@@ -94,22 +118,18 @@ func (t *TCPTransport) startAcceptLoop() {
 			fmt.Printf("TCP accept error: %s\n", err)
 		}
 
-		fmt.Printf("new incoming connection %+v\n", conn)
-		go t.handleConn(conn)
+		go t.handleConn(conn, false)
 	}
 }
 
-
-type Temp struct {}
-
-func (t *TCPTransport) handleConn(conn net.Conn) {
+func (t *TCPTransport) handleConn(conn net.Conn, outbound bool) {
 	var err error
 
 	defer func ()  {
 		fmt.Printf("Dropping peer connection: %s\n", err)
 		conn.Close()
 	}()
-	peer := NewTCPPeer(conn, true)
+	peer := NewTCPPeer(conn, outbound)
 
 	// Handshake with peer
 	if err = t.HandshakeFunc(peer); err != nil {

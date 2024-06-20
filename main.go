@@ -1,40 +1,40 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"time"
 
 	"github.com/BrunoFromMars/dfsgo/p2p"
 )
 
-func OnPeer(p2p.Peer) error {
-	fmt.Println("doing some logic with the peer outside of TCP Transport")
-	return nil
-}
-
-func main() {
+func makeServer(listenAddr string, nodes ...string) *FileServer {
 	tcpOpts := p2p.TCPTransportOpts {
-		ListenAddr:    ":3000",
+		ListenAddr:    listenAddr,
 		HandshakeFunc: p2p.NoHandShakeFunc,
 		Decoder:       p2p.DefaultDecoder{},
-		// OnPeer: OnPeer, TODO: OnPeer function
 	}
 	tcpTransport := p2p.NewTCPTransport(tcpOpts)
 
 	fileServerOpts := FileServerOpts {
-		StorageRoot:       "3000_network",
+		StorageRoot:       listenAddr + "_network",
 		PathTransformFunc: CASPathTransformFunc,
 		Transport:         tcpTransport,
+		BootstrapNodes:    nodes,
 	}
+
 	fs := NewFileServer(fileServerOpts)
 
-	go func() {
-		time.Sleep(time.Second * 3)
-		fs.Stop()
+	tcpTransport.OnPeer = fs.OnPeer
+
+	return fs
+}
+
+func main() {
+	s1 := makeServer(":3000", "")
+	s2 := makeServer(":4000", ":3000")
+
+	go func ()  {
+		log.Fatal(s1.Start())
 	}()
 
-	if err := fs.Start(); err != nil {
-		log.Fatal(err)
-	}
+	s2.Start()
 }
