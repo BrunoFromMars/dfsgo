@@ -1,7 +1,11 @@
 package main
 
 import (
+	"fmt"
+	"io"
 	"log"
+	"strings"
+	"time"
 
 	"github.com/BrunoFromMars/dfsgo/p2p"
 )
@@ -15,7 +19,7 @@ func makeServer(listenAddr string, nodes ...string) *FileServer {
 	tcpTransport := p2p.NewTCPTransport(tcpOpts)
 
 	fileServerOpts := FileServerOpts {
-		StorageRoot:       listenAddr + "_network",
+		StorageRoot:       strings.Trim(listenAddr, ":") + "_network",
 		PathTransformFunc: CASPathTransformFunc,
 		Transport:         tcpTransport,
 		BootstrapNodes:    nodes,
@@ -35,6 +39,28 @@ func main() {
 	go func ()  {
 		log.Fatal(s1.Start())
 	}()
+	
+	time.Sleep(time.Second * 4)
 
-	s2.Start()
+	go s2.Start()
+
+	time.Sleep(time.Second * 4)
+
+	// data := bytes.NewReader([]byte("my big data file"))
+	// s2.StoreData("my private key", data)
+
+	r, err := s2.GetData("my private key")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	b, err := io.ReadAll(r)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(string(b))
+
+	select {}
 }
