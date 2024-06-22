@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -34,37 +35,41 @@ func makeServer(listenAddr string, nodes ...string) *FileServer {
 
 func main() {
 	s1 := makeServer(":3000", "")
-	s2 := makeServer(":4000", ":3000")
+	s2 := makeServer(":7000", "")
+	s3 := makeServer(":5000", ":3000", ":7000")
 
 	go func ()  {
 		log.Fatal(s1.Start())
 	}()
+	time.Sleep(time.Millisecond * 500)
+	go func ()  {
+		log.Fatal(s2.Start())
+	}()
 	
 	time.Sleep(time.Second * 2)
 
-	go s2.Start()
+	go s3.Start()
 
 	time.Sleep(time.Second * 2)
 
-	// for i := 0; i < 5; i++ {
-	// 	data := bytes.NewReader([]byte("my big data file"))
-	// 	s2.StoreData(fmt.Sprintf("myprivatedata_%d", i), data)
-	// 	time.Sleep(5 * time.Millisecond)
-	// }
+	for i := 0; i < 5; i++ {
+		key := fmt.Sprintf("picture_%d.png", i)
+		data := bytes.NewReader([]byte("my big data file here!"))
+		s3.StoreData(key,data)
 
-	// data := bytes.NewReader([]byte("my big data file"))
-	// s2.StoreData("coolPicture.jpg", data)
+		if err := s3.store.Delete(s3.ID, key); err != nil {
+			log.Fatal(err)
+		}
 
-	r, err := s2.GetData("coolPicture.jpg")
+		r, err := s3.GetData(key)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	if err != nil {
-		log.Fatal(err)
+		b, err := io.ReadAll(r)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(string(b))
 	}
-	b, err := io.ReadAll(r)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println(string(b))
 }
